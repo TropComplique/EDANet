@@ -1,39 +1,30 @@
 import os
 import tensorflow as tf
-import json
-from keypoints_model import model_fn, RestoreMovingAverageHook
-from detector.input_pipeline import KeypointPipeline as Pipeline
+from model import model_fn, RestoreMovingAverageHook
+from input_pipeline import Pipeline
 tf.logging.set_verbosity('INFO')
 
 
 GPU_TO_USE = '0'
-# CONFIG = 'config.json'
-# params = json.load(open(CONFIG))
+NUM_STEPS = 10000
 
 params = {
     "model_dir": "models/run00/",
-    "train_dataset": "/home/dan/datasets/COCO/multiposenet/train/",
-    "val_dataset": "/home/dan/datasets/COCO/multiposenet/val/",
-    "pretrained_checkpoint": "pretrained/mobilenet_v1_1.0_224.ckpt",
+    "train_dataset": "/mnt/datasets/dan/moda/edanet/train/",
+    "val_dataset": "/mnt/datasets/dan/moda/edanet/val/",
 
-    "backbone": "mobilenet",
-    "depth_multiplier": 1.0,
-    "weight_decay": 2e-3,
+    "weight_decay": 1e-4,
+    'k': 40,
+    'num_classes': 13,
 
-    # "score_threshold": 0.05, "iou_threshold": 0.6, "max_boxes_per_class": 25,
-    # "localization_loss_weight": 1.0, "classification_loss_weight": 4.0,
+    "num_steps": NUM_STEPS,
+    'initial_learning_rate': 1e-3,
+    'decay_steps': NUM_STEPS,
+    'end_learning_rate': 1e-6,
 
-    # "gamma": 2.0,
-    # "alpha": 0.25,
-
-    "num_steps": 120000,
-    "lr_boundaries": [80000],
-    "lr_values": [1e-4, 1e-5],
-
-    "min_dimension": 512,
-    "batch_size": 8,  # 1 epoch ~ 7500 steps
-    "image_height": 512,
-    "image_width": 512,
+    "batch_size": 16,
+    "image_height": 256,
+    "image_width": 256,
 }
 
 
@@ -65,8 +56,7 @@ run_config = run_config.replace(
 train_input_fn = get_input_fn(is_training=True)
 val_input_fn = get_input_fn(is_training=False)
 estimator = tf.estimator.Estimator(
-    model_fn, params=params, config=run_config,
-    warm_start_from=tf.estimator.WarmStartSettings('pretrained/mobilenet_v1_1.0_224.ckpt', 'MobilenetV1/*')
+    model_fn, params=params, config=run_config
 )
 
 

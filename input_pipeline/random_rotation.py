@@ -1,4 +1,5 @@
 import tensorflow as tf
+import math
 
 
 def random_rotation(image, masks, max_angle=45, probability=0.9):
@@ -33,7 +34,7 @@ def random_rotation(image, masks, max_angle=45, probability=0.9):
                 tf.cos(theta), -tf.sin(theta),
                 tf.sin(theta), tf.cos(theta)
             ], axis=0)
-            rotation_matrix = inverse_scale * tf.reshape(inverse_rotation, [2, 2])
+            rotation_matrix = tf.reshape(rotation, [2, 2])
 
             # rotate the image
             translate = image_center - tf.matmul(image_center, rotation_matrix)

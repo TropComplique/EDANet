@@ -93,10 +93,14 @@ class Pipeline:
         masks = tf.to_float(tf.reshape(masks, [image_height, image_width, NUM_LABELS]))
 
         if self.is_training:
-            image, labels = self.augmentation(image, masks)
-        else:
-            labels = tf.argmax(masks, axis=2, output_type=tf.int32)
-            # it has shape [image_height, image_width]
+            image, masks = self.augmentation(image, masks)
+            image_height, image_width = tf.shape(image)[0], tf.shape(image)[1]
+        
+        # transform into the sparse format
+        background = tf.zeros([image_height, image_width, 1], tf.float32)
+        masks = tf.concat([background, masks], axis=2)
+        labels = tf.argmax(masks, axis=2, output_type=tf.int32)
+        # it has shape [image_height, image_width]
 
         features, labels = image, labels
         return features, labels
@@ -109,10 +113,7 @@ class Pipeline:
         image = random_pixel_value_scale(image, probability=0.1, minval=0.9, maxval=1.1)
         image, masks = random_flip_left_right(image, masks)
         masks.set_shape(self.image_size + [NUM_LABELS])
-
-        # transform into the sparse format
-        labels = tf.argmax(masks, axis=2, output_type=tf.int32)
-        return image, labels
+        return image, masks
 
 
 def randomly_crop_and_resize(image, masks, image_size, probability=0.5):
@@ -134,7 +135,7 @@ def randomly_crop_and_resize(image, masks, image_size, probability=0.5):
     def get_random_window():
 
         crop_size = tf.random_uniform(
-            [], tf.to_int32(0.5*min_dimension),
+            [], tf.to_int32(0.5*tf.to_float(min_dimension)),
             min_dimension, dtype=tf.int32
         )
         # min(height, width) > crop_size
