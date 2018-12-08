@@ -1,5 +1,4 @@
 import tensorflow as tf
-from .random_crop import random_crop
 from .random_rotation import random_rotation
 from .color_augmentations import random_color_manipulations, random_pixel_value_scale
 
@@ -7,9 +6,9 @@ from .color_augmentations import random_color_manipulations, random_pixel_value_
 SHUFFLE_BUFFER_SIZE = 5000
 NUM_PARALLEL_CALLS = 12
 RESIZE_METHOD = tf.image.ResizeMethod.BILINEAR
+NUM_LABELS = 13
 
-
-"""Input pipeline for training or evaluating networks for heatmap regression."""
+"""Input pipeline for training or evaluating networks for segmentation."""
 
 
 class Pipeline:
@@ -70,10 +69,7 @@ class Pipeline:
         Returns:
             image: a float tensor with shape [image_height, image_width, 3],
                 an RGB image with pixel values in the range [0, 1].
-            labels: an int tensor with shape [height, width].
-
-            where `height = image_height/downsample`
-            and `width = image_width/downsample`.
+            labels: an int tensor with shape [image_height, image_width].
         """
         features = {
             'image': tf.FixedLenFeature([], tf.string),
@@ -92,28 +88,27 @@ class Pipeline:
         # unpack bits (reverse np.packbits)
         b = tf.constant([128, 64, 32, 16, 8, 4, 2, 1], dtype=tf.uint8)
         masks = tf.reshape(tf.bitwise.bitwise_and(masks[:, None], b), [-1])
-        masks = masks[:(image_height * image_width * 13)]
+        masks = masks[:(image_height * image_width * NUM_LABELS)]
         masks = tf.cast(masks > 0, tf.uint8)
-        masks = tf.to_float(tf.reshape(masks, [image_height, image_width, 13]))
+        masks = tf.to_float(tf.reshape(masks, [image_height, image_width, NUM_LABELS]))
 
         if self.is_training:
             image, labels = self.augmentation(image, masks)
         else:
             labels = tf.argmax(masks, axis=2, output_type=tf.int32)
-            # it has shape [height, width]
-
+            # it has shape [image_height, image_width]
 
         features, labels = image, labels
         return features, labels
 
     def augmentation(self, image, masks):
 
-        image, masks = random_rotation(image, masks, max_angle=45, probability=0.9)
+        image, masks = random_rotation(image, masks, max_angle=25, probability=0.5)
         image, masks = randomly_crop_and_resize(image, masks, self.image_size, probability=0.9)
         image = random_color_manipulations(image, probability=0.5, grayscale_probability=0.1)
         image = random_pixel_value_scale(image, probability=0.1, minval=0.9, maxval=1.1)
         image, masks = random_flip_left_right(image, masks)
-        masks.set_shape(self.image_size + [13])
+        masks.set_shape(self.image_size + [NUM_LABELS])
 
         # transform into the sparse format
         labels = tf.argmax(masks, axis=2, output_type=tf.int32)
@@ -124,49 +119,43 @@ def randomly_crop_and_resize(image, masks, image_size, probability=0.5):
     """
     Arguments:
         image: a float tensor with shape [height, width, 3].
-        masks: a float tensor with shape [height, width, 13].
+        masks: a float tensor with shape [height, width, num_labels].
         image_size: a list with two integers [new_height, new_width].
         probability: a float number.
     Returns:
         image: a float tensor with shape [new_height, new_width, 3].
-        masks: a float tensor with shape [new_height/DOWNSAMPLE, new_width/DOWNSAMPLE].
-        keypoints: an int tensor with shape [num_persons, 17, 3],
-            note that it has the same shape, but some points became not visible.
+        masks: a float tensor with shape [new_height, new_width, num_labels].
     """
 
-    height = tf.to_float(tf.shape(image)[0])
-    width = tf.to_float(tf.shape(image)[1])
-   
-    def crop(image, boxes):
-        image, _, window, _ = random_crop(
-            image, boxes,
-            min_object_covered=0.9,
-            aspect_ratio_range=(0.95, 1.05),
-            area_range=(0.5, 1.0),
-            overlap_threshold=0.3
+    height = tf.shape(image)[0]
+    width = tf.shape(image)[1]
+    min_dimension = tf.minimum(height, width)
+
+    def get_random_window():
+
+        crop_size = tf.random_uniform(
+            [], tf.to_int32(0.5*min_dimension),
+            min_dimension, dtype=tf.int32
         )
-        return image, window
+        # min(height, width) > crop_size
 
-    whole_image_window = tf.constant([0.0, 0.0, 1.0, 1.0], dtype=tf.float32)
+        y = tf.random_uniform([], 0, height - crop_size, dtype=tf.int32)
+        x = tf.random_uniform([], 0, width - crop_size, dtype=tf.int32)
+        crop_window = tf.stack([y, x, crop_size, crop_size])
+        return crop_window
 
+    whole_image_window = tf.stack([0, 0, height, width])
     do_it = tf.less(tf.random_uniform([]), probability)
-    image, window = tf.cond(
-        do_it, lambda: crop(image, boxes),
-        lambda: (image, whole_image_window)
+    window = tf.cond(
+        do_it, lambda: get_random_window(),
+        lambda: whole_image_window
     )
-    image = tf.image.resize_images(image, image_size, method=RESIZE_METHOD)
 
-    # resize masks
-    masks_height = math.ceil(image_size[0])
-    masks_width = math.ceil(image_size[1])
-    masks = tf.image.crop_and_resize(
-        image=tf.expand_dims(masks, 0),
-        boxes=tf.expand_dims(window, 0),
-        box_ind=tf.constant([0], dtype=tf.int32),
-        crop_size=[masks_height, masks_width],
-        method='nearest'
-    )
-    masks = masks[0]
+    image = tf.image.crop_to_bounding_box(image, window[0], window[1], window[2], window[3])
+    masks = tf.image.crop_to_bounding_box(masks, window[0], window[1], window[2], window[3])
+
+    image = tf.image.resize_images(image, image_size, method=RESIZE_METHOD)
+    masks = tf.image.resize_images(masks, image_size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
     return image, masks
 
 

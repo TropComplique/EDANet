@@ -29,8 +29,10 @@ And don't forget set the right paths below.
 
 IMAGES_DIR = '/mnt/datasets/dan/moda/images/train/'
 ANNOTATIONS_FILE = '/mnt/datasets/dan/moda/annotations/modanet2018_instances_train.json'
-SPLIT = pd.read_csv('trainval_split.csv')
 coco = COCO(ANNOTATIONS_FILE)
+
+# it tells which image ids will be in validation
+SPLIT = pd.read_csv('trainval_split.csv')
 
 # path where converted data will be stored
 RESULT_PATH = '/mnt/datasets/dan/moda/edanet/'
@@ -39,6 +41,7 @@ RESULT_PATH = '/mnt/datasets/dan/moda/edanet/'
 NUM_TRAIN_SHARDS = 300
 NUM_VAL_SHARDS = 1
 
+# classes will be encoded by integers as usual
 with open('modanet_labels.txt', 'r') as f:
     integer_encoding = {line.strip(): i for i, line in enumerate(f.readlines()) if line.strip()}
 print('Possible labels (and label encoding):', integer_encoding)
@@ -77,7 +80,7 @@ def to_tf_example(image_path, annotations):
     for a in annotations:
         binary_mask = coco.annToMask(a) > 0
         i = id_to_integer[a['category_id']]
-        masks[:, :, i] = np.logical_or(masks[:, :, i], binary_mask)  
+        masks[:, :, i] = np.logical_or(masks[:, :, i], binary_mask)
     masks = np.packbits(masks)
 
     example = tf.train.Example(features=tf.train.Features(feature={
