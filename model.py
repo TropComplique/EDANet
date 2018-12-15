@@ -10,12 +10,12 @@ def model_fn(features, labels, mode, params):
     This is a function for creating a computational tensorflow graph.
     The function is in format required by tf.estimator.
     """
-    
+
     is_training = mode == tf.estimator.ModeKeys.TRAIN
     images = features
     logits = eda_net(
-        images, is_training, k=params['k'], 
-        num_classes=params['num_classes']
+        images, is_training, k=params['k'],
+        num_classes=params['num_labels'] + 1
     )
     predictions = {
         'probabilities': tf.nn.softmax(logits, axis=3),
@@ -40,20 +40,32 @@ def model_fn(features, labels, mode, params):
 
     with tf.name_scope('losses'):
 
+        class_weights = tf.constant(params['class_weights'], tf.float32)
+        # it has shape [num_labels + 1]
+
+        weights = tf.gather(class_weights, labels)
         losses = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=logits)
-        # it has shape [batch_size, image_height, image_width]
-        
-        cross_entropy = tf.reduce_mean(losses, axis=[0, 1, 2])
+        # they have shape [batch_size, image_height, image_width]
+
+        cross_entropy = tf.reduce_mean(losses * weights, axis=[0, 1, 2])
         tf.losses.add_loss(cross_entropy)
         tf.summary.scalar('cross_entropy', cross_entropy)
 
     total_loss = tf.losses.get_total_loss(add_regularization_losses=True)
 
     with tf.name_scope('eval_metrics'):
+
+        # this is a stupid metric actually
         accuracy = tf.reduce_mean(tf.to_float(tf.equal(predictions['labels'], labels)), axis=[0, 1, 2])
 
+        # this is better
+        mean_iou = compute_iou(predictions['labels'], labels, params['num_labels'] + 1)
+
     if mode == tf.estimator.ModeKeys.EVAL:
-        eval_metric_ops = {'eval_accuracy': tf.metrics.mean(accuracy)}
+        eval_metric_ops = {
+            'eval_accuracy': tf.metrics.mean(accuracy),
+            'eval_mean_iou': tf.metrics.mean(mean_iou)
+        }
         return tf.estimator.EstimatorSpec(
             mode, loss=total_loss,
             eval_metric_ops=eval_metric_ops
@@ -82,22 +94,15 @@ def model_fn(features, labels, mode, params):
     with tf.control_dependencies([train_op]), tf.name_scope('ema'):
         ema = tf.train.ExponentialMovingAverage(decay=MOVING_AVERAGE_DECAY, num_updates=global_step)
         train_op = ema.apply(tf.trainable_variables())
-    
+
     tf.summary.scalar('train_accuracy', accuracy)
+    tf.summary.scalar('train_mean_iou', mean_iou)
     return tf.estimator.EstimatorSpec(mode, loss=total_loss, train_op=train_op)
 
 
 def add_weight_decay(weight_decay):
     """Add L2 regularization to all (or some) trainable kernel weights."""
-    weight_decay = tf.constant(
-        weight_decay, tf.float32,
-        [], 'weight_decay'
-    )
-    trainable_vars = tf.trainable_variables()
-    kernels = [
-        v for v in trainable_vars
-        if ('weights' in v.name)
-    ]
+    kernels = [v for v in tf.trainable_variables() if 'weights' in v.name]
     for K in kernels:
         x = tf.multiply(weight_decay, tf.nn.l2_loss(K))
         tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES, x)
@@ -118,3 +123,26 @@ class RestoreMovingAverageHook(tf.train.SessionRunHook):
     def after_create_session(self, sess, coord):
         tf.logging.info('Loading EMA weights...')
         self.load_ema(sess)
+
+
+def compute_iou(x, y, num_labels):
+    """
+    Arguments:
+        x, y: int tensors with shape [b, h, w],
+            possible values that they can contain
+            are {0, 1, ..., num_labels - 1}.
+        num_labels: an integer.
+    Returns:
+        a float tensor with shape [].
+    """
+    x = tf.one_hot(x, num_labels, axis=3, dtype=tf.int32)
+    y = tf.one_hot(y, num_labels, axis=3, dtype=tf.int32)
+    intersection = tf.logical_and(x, y)
+    union = tf.logical_or(x, y)
+    # they all have shape [b, h, w, num_labels]
+
+    intersection = tf.reduce_sum(intersection, axis=[1, 2])
+    union = tf.reduce_sum(union, axis=[1, 2])
+    # they have shape [b, num_labels]
+
+    return tf.reduce_mean(intersection/union, axis=[0, 1])

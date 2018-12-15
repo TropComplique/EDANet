@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import tensorflow as tf
 from model import model_fn, RestoreMovingAverageHook
 from input_pipeline import Pipeline
@@ -6,25 +7,30 @@ tf.logging.set_verbosity('INFO')
 
 
 GPU_TO_USE = '0'
-NUM_STEPS = 10000
+NUM_STEPS = 50000
+
+# a numpy float array with shape [num_labels + 1]
+CLASS_WEIGHTS = np.load('data/class_weights.npy')
+# zeros label means background
 
 params = {
-    "model_dir": "models/run00/",
-    "train_dataset": "/mnt/datasets/dan/moda/edanet/train/",
-    "val_dataset": "/mnt/datasets/dan/moda/edanet/val/",
+    'model_dir': 'models/run00/',
+    'train_dataset': '/mnt/datasets/dan/moda/edanet/train/',
+    'val_dataset': '/mnt/datasets/dan/moda/edanet/val/',
 
-    "weight_decay": 1e-4,
-    'k': 40,
-    'num_classes': 13,
+    'weight_decay': 1e-4,
+    'k': 40,  # growth rate
+    'num_labels': 13,  # without counting background
+    'class_weights': CLASS_WEIGHTS,
 
-    "num_steps": NUM_STEPS,
+    'num_steps': NUM_STEPS,
     'initial_learning_rate': 1e-3,
     'decay_steps': NUM_STEPS,
     'end_learning_rate': 1e-6,
 
-    "batch_size": 16,
-    "image_height": 256,
-    "image_width": 256,
+    'batch_size': 10,
+    'image_height': 256,
+    'image_width': 256,
 }
 
 
@@ -36,8 +42,7 @@ def get_input_fn(is_training=True):
     filenames = [os.path.join(dataset_path, n) for n in sorted(filenames)]
 
     def input_fn():
-        with tf.device('/cpu:0'), tf.name_scope('input_pipeline'):
-            pipeline = Pipeline(filenames, is_training, params)
+        pipeline = Pipeline(filenames, is_training, params)
         return pipeline.dataset
 
     return input_fn

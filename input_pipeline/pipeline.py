@@ -6,9 +6,6 @@ from .color_augmentations import random_color_manipulations, random_pixel_value_
 SHUFFLE_BUFFER_SIZE = 5000
 NUM_PARALLEL_CALLS = 12
 RESIZE_METHOD = tf.image.ResizeMethod.BILINEAR
-NUM_LABELS = 13
-
-"""Input pipeline for training or evaluating networks for segmentation."""
 
 
 class Pipeline:
@@ -22,6 +19,9 @@ class Pipeline:
             params: a dict.
         """
         self.is_training = is_training
+
+        self.num_labels = params['num_labels']
+        # not counting background
 
         if is_training:
             batch_size = params['batch_size']
@@ -69,7 +69,9 @@ class Pipeline:
         Returns:
             image: a float tensor with shape [image_height, image_width, 3],
                 an RGB image with pixel values in the range [0, 1].
-            labels: an int tensor with shape [image_height, image_width].
+            labels: an int tensor with shape [image_height, image_width],
+                it contains values in range [0, num_labels].
+                Where `0` is the label of background.
         """
         features = {
             'image': tf.FixedLenFeature([], tf.string),
@@ -88,17 +90,17 @@ class Pipeline:
         # unpack bits (reverse np.packbits)
         b = tf.constant([128, 64, 32, 16, 8, 4, 2, 1], dtype=tf.uint8)
         masks = tf.reshape(tf.bitwise.bitwise_and(masks[:, None], b), [-1])
-        masks = masks[:(image_height * image_width * NUM_LABELS)]
+        masks = masks[:(image_height * image_width * self.num_labels)]
         masks = tf.cast(masks > 0, tf.uint8)
-        masks = tf.to_float(tf.reshape(masks, [image_height, image_width, NUM_LABELS]))
+        masks = tf.to_float(tf.reshape(masks, [image_height, image_width, self.num_labels]))
 
         if self.is_training:
             image, masks = self.augmentation(image, masks)
             image_height, image_width = tf.shape(image)[0], tf.shape(image)[1]
-        
+
         # transform into the sparse format
-        background = tf.zeros([image_height, image_width, 1], tf.float32)
-        masks = tf.concat([background, masks], axis=2)
+        background = tf.to_float(tf.logical_not(tf.reduce_any(masks > 0.0, axis=2)))
+        masks = tf.concat([tf.expand_dims(background, 2), masks], axis=2)
         labels = tf.argmax(masks, axis=2, output_type=tf.int32)
         # it has shape [image_height, image_width]
 
@@ -106,13 +108,12 @@ class Pipeline:
         return features, labels
 
     def augmentation(self, image, masks):
-
-        image, masks = random_rotation(image, masks, max_angle=25, probability=0.5)
+        image, masks = random_rotation(image, masks, max_angle=30, probability=0.2)
         image, masks = randomly_crop_and_resize(image, masks, self.image_size, probability=0.9)
-        image = random_color_manipulations(image, probability=0.5, grayscale_probability=0.1)
-        image = random_pixel_value_scale(image, probability=0.1, minval=0.9, maxval=1.1)
+        image = random_color_manipulations(image, probability=0.5, grayscale_probability=0.05)
+        image = random_pixel_value_scale(image, probability=0.2, minval=0.9, maxval=1.1)
         image, masks = random_flip_left_right(image, masks)
-        masks.set_shape(self.image_size + [NUM_LABELS])
+        masks.set_shape(self.image_size + [self.num_labels])
         return image, masks
 
 
@@ -130,12 +131,12 @@ def randomly_crop_and_resize(image, masks, image_size, probability=0.5):
 
     height = tf.shape(image)[0]
     width = tf.shape(image)[1]
-    min_dimension = tf.minimum(height, width)
+    min_dimension = tf.to_float(tf.minimum(height, width))
 
     def get_random_window():
 
         crop_size = tf.random_uniform(
-            [], tf.to_int32(0.5*tf.to_float(min_dimension)),
+            [], tf.to_int32(0.5 * min_dimension),
             min_dimension, dtype=tf.int32
         )
         # min(height, width) > crop_size
