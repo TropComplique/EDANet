@@ -88,21 +88,22 @@ class Pipeline:
         # get a segmentation masks
         masks = tf.decode_raw(parsed_features['masks'], tf.uint8)
         # unpack bits (reverse np.packbits)
-        b = tf.constant([128, 64, 32, 16, 8, 4, 2, 1], dtype=tf.uint8)
-        masks = tf.reshape(tf.bitwise.bitwise_and(masks[:, None], b), [-1])
-        masks = masks[:(image_height * image_width * self.num_labels)]
-        masks = tf.cast(masks > 0, tf.uint8)
-        masks = tf.to_float(tf.reshape(masks, [image_height, image_width, self.num_labels]))
+        #b = tf.constant([128, 64, 32, 16, 8, 4, 2, 1], dtype=tf.uint8)
+        #masks = tf.reshape(tf.bitwise.bitwise_and(masks[:, None], b), [-1])
+        #masks = masks[:(image_height * image_width * self.num_labels)]
+        #masks = tf.cast(masks > 0, tf.uint8)
+        masks = tf.reshape(masks, [image_height, image_width])
+        labels = masks
 
         if self.is_training:
+            masks = tf.one_hot(masks, 14, dtype=tf.float32)
             image, masks = self.augmentation(image, masks)
             image_height, image_width = tf.shape(image)[0], tf.shape(image)[1]
-
-        # transform into the sparse format
-        background = tf.to_float(tf.logical_not(tf.reduce_any(masks > 0.0, axis=2)))
-        masks = tf.concat([tf.expand_dims(background, 2), masks], axis=2)
-        labels = tf.argmax(masks, axis=2, output_type=tf.int32)
-        # it has shape [image_height, image_width]
+            # transform into the sparse format
+            #background = tf.to_float(tf.logical_not(tf.reduce_any(masks > 0.0, axis=2)))
+            #masks = tf.concat([tf.expand_dims(background, 2), masks], axis=2)
+            labels = tf.argmax(masks, axis=2, output_type=tf.int32)
+            # it has shape [image_height, image_width]
 
         features, labels = image, labels
         return features, labels
@@ -113,7 +114,7 @@ class Pipeline:
         image = random_color_manipulations(image, probability=0.5, grayscale_probability=0.05)
         image = random_pixel_value_scale(image, probability=0.2, minval=0.9, maxval=1.1)
         image, masks = random_flip_left_right(image, masks)
-        masks.set_shape(self.image_size + [self.num_labels])
+        masks.set_shape(self.image_size + [self.num_labels + 1])
         return image, masks
 
 

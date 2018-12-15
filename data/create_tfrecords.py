@@ -35,7 +35,7 @@ coco = COCO(ANNOTATIONS_FILE)
 SPLIT = pd.read_csv('trainval_split.csv')
 
 # path where converted data will be stored
-RESULT_PATH = '/mnt/datasets/dan/moda/edanet/'
+RESULT_PATH = '/mnt/datasets/dan/moda/edanet2/'
 
 # because dataset is big we will split it into parts
 NUM_TRAIN_SHARDS = 300
@@ -81,7 +81,13 @@ def to_tf_example(image_path, annotations):
         binary_mask = coco.annToMask(a) > 0
         i = id_to_integer[a['category_id']]
         masks[:, :, i] = np.logical_or(masks[:, :, i], binary_mask)
-    masks = np.packbits(masks)
+    # masks = np.packbits(masks)
+    
+    background = np.logical_not(np.any(masks, axis=2))
+    masks = np.concatenate([np.expand_dims(background, 2), masks], axis=2)
+    masks = masks.astype('int32')
+    masks = np.argmax(masks, axis=2)
+    masks = masks.astype('uint8')
 
     example = tf.train.Example(features=tf.train.Features(feature={
         'image': _bytes_feature(encoded_jpg),
