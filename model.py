@@ -15,7 +15,7 @@ def model_fn(features, labels, mode, params):
     images = features
     logits = eda_net(
         images, is_training, k=params['k'],
-        num_classes=params['num_labels'] + 1
+        num_classes=params['num_labels']
     )
     predictions = {
         'probabilities': tf.nn.softmax(logits, axis=3),
@@ -41,7 +41,7 @@ def model_fn(features, labels, mode, params):
     with tf.name_scope('losses'):
 
         class_weights = tf.constant(params['class_weights'], tf.float32)
-        # it has shape [num_labels + 1]
+        # it has shape [num_labels]
 
         weights = tf.gather(class_weights, labels)
         losses = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=logits)
@@ -59,7 +59,7 @@ def model_fn(features, labels, mode, params):
         accuracy = tf.reduce_mean(tf.to_float(tf.equal(predictions['labels'], labels)), axis=[0, 1, 2])
 
         # this is better
-        mean_iou = compute_iou(predictions['labels'], labels, params['num_labels'] + 1)
+        mean_iou = compute_iou(predictions['labels'], labels, params['num_labels'])
 
     if mode == tf.estimator.ModeKeys.EVAL:
         eval_metric_ops = {
@@ -135,8 +135,10 @@ def compute_iou(x, y, num_labels):
     Returns:
         a float tensor with shape [].
     """
-    x = tf.equal(tf.one_hot(x, num_labels, axis=3, dtype=tf.int32), 1)
-    y = tf.equal(tf.one_hot(y, num_labels, axis=3, dtype=tf.int32), 1)
+    unique_labels = tf.range(num_labels, dtype=tf.int32)
+
+    x = tf.equal(tf.expand_dims(x, 3), unique_labels)
+    y = tf.equal(tf.expand_dims(y, 3), unique_labels)
     intersection = tf.to_float(tf.logical_and(x, y))
     union = tf.to_float(tf.logical_or(x, y))
     # they all have shape [b, h, w, num_labels]

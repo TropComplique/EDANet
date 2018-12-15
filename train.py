@@ -9,9 +9,9 @@ tf.logging.set_verbosity('INFO')
 GPU_TO_USE = '0'
 NUM_STEPS = 50000
 
-# a numpy float array with shape [num_labels + 1]
+# a numpy float array with shape [num_labels]
 CLASS_WEIGHTS = np.load('data/class_weights.npy')
-# zeros label means background
+# zeroth label means background
 
 params = {
     'model_dir': 'models/run00/',
@@ -20,8 +20,8 @@ params = {
 
     'weight_decay': 1e-4,
     'k': 40,  # growth rate
-    'num_labels': 13,  # without counting background
-    'class_weights': CLASS_WEIGHTS,
+    'num_labels': 14,  # background is counted
+    'class_weights': CLASS_WEIGHTS.tolist(),
 
     'num_steps': NUM_STEPS,
     'initial_learning_rate': 1e-3,

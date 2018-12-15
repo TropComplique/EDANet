@@ -45,7 +45,7 @@ NUM_VAL_SHARDS = 1
 with open('modanet_labels.txt', 'r') as f:
     integer_encoding = {line.strip(): i for i, line in enumerate(f.readlines()) if line.strip()}
 print('Possible labels (and label encoding):', integer_encoding)
-NUM_LABELS = len(integer_encoding)
+NUM_LABELS = len(integer_encoding)  # without background
 
 categories = coco.loadCats(coco.getCatIds())
 id_to_integer = {d['id']: integer_encoding[d['name']] for d in categories}
@@ -81,13 +81,11 @@ def to_tf_example(image_path, annotations):
         binary_mask = coco.annToMask(a) > 0
         i = id_to_integer[a['category_id']]
         masks[:, :, i] = np.logical_or(masks[:, :, i], binary_mask)
-    # masks = np.packbits(masks)
-    
+
+    # now transform one hot encoded masks into the sparse format
     background = np.logical_not(np.any(masks, axis=2))
     masks = np.concatenate([np.expand_dims(background, 2), masks], axis=2)
-    masks = masks.astype('int32')
-    masks = np.argmax(masks, axis=2)
-    masks = masks.astype('uint8')
+    masks = np.argmax(masks.astype('int32'), axis=2).astype('uint8')
 
     example = tf.train.Example(features=tf.train.Features(feature={
         'image': _bytes_feature(encoded_jpg),
