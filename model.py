@@ -135,14 +135,15 @@ def compute_iou(x, y, num_labels):
     Returns:
         a float tensor with shape [].
     """
-    x = tf.one_hot(x, num_labels, axis=3, dtype=tf.int32)
-    y = tf.one_hot(y, num_labels, axis=3, dtype=tf.int32)
-    intersection = tf.logical_and(x, y)
-    union = tf.logical_or(x, y)
+    x = tf.equal(tf.one_hot(x, num_labels, axis=3, dtype=tf.int32), 1)
+    y = tf.equal(tf.one_hot(y, num_labels, axis=3, dtype=tf.int32), 1)
+    intersection = tf.to_float(tf.logical_and(x, y))
+    union = tf.to_float(tf.logical_or(x, y))
     # they all have shape [b, h, w, num_labels]
 
     intersection = tf.reduce_sum(intersection, axis=[1, 2])
     union = tf.reduce_sum(union, axis=[1, 2])
+    union = tf.maximum(union, 1.0)
     # they have shape [b, num_labels]
 
     return tf.reduce_mean(intersection/union, axis=[0, 1])

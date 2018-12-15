@@ -23,3 +23,7 @@ Annotations are only available for the official train part.
 So we need to create a train-val split by ourselves.    
 Use `explore_modanet.ipynb` to explore random dataset annotations.  
 Also it creates an label integer encoding for training (`modanet_labels.txt`).
+
+
+train 46891 = 42243 + 
+val 2591

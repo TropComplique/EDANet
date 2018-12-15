@@ -131,12 +131,12 @@ def randomly_crop_and_resize(image, masks, image_size, probability=0.5):
 
     height = tf.shape(image)[0]
     width = tf.shape(image)[1]
-    min_dimension = tf.to_float(tf.minimum(height, width))
+    min_dimension = tf.minimum(height, width)
 
     def get_random_window():
 
         crop_size = tf.random_uniform(
-            [], tf.to_int32(0.5 * min_dimension),
+            [], tf.to_int32(0.5 * tf.to_float(min_dimension)),
             min_dimension, dtype=tf.int32
         )
         # min(height, width) > crop_size
