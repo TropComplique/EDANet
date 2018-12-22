@@ -93,7 +93,7 @@ class Pipeline:
             image, masks = self.augmentation(image, masks)
             labels = tf.argmax(masks, axis=2, output_type=tf.int32)
         else:
-            labels = masks
+            labels = tf.to_int32(masks)
 
         features, labels = image, labels
         return features, labels
