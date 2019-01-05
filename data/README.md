@@ -1,3 +1,8 @@
+# Cityscapes
+1. Get dataset files: `gtFine_trainvaltest.zip` and `leftImg8bit_trainvaltest.zip` from [here](https://www.cityscapes-dataset.com/downloads/).
+2. Get [cityscapesScripts](https://github.com/mcordts/cityscapesScripts).
+
+
 # ModaNet
 [ModaNet: A Large-Scale Street Fashion Dataset with Polygon Annotations](https://arxiv.org/abs/1807.01394).
 
@@ -25,5 +30,5 @@ Use `explore_modanet.ipynb` to explore random dataset annotations.
 Also it creates an label integer encoding for training (`modanet_labels.txt`).
 
 
-train 46891 = 42243 + 
+train 46891 = 42243 +
 val 2591

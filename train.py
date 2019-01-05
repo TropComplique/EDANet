@@ -24,13 +24,15 @@ params = {
     'class_weights': CLASS_WEIGHTS.tolist(),
 
     'num_steps': NUM_STEPS,
-    'initial_learning_rate': 1e-3,
+    'initial_learning_rate': 1e-4,
     'decay_steps': NUM_STEPS,
     'end_learning_rate': 1e-6,
 
     'batch_size': 10,
-    'image_height': 256,
-    'image_width': 256,
+    # 'image_height': 256,
+    # 'image_width': 256,
+    'image_height': 512,
+    'image_width': 1024,
 }
 
 

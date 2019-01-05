@@ -19,9 +19,7 @@ class Pipeline:
             params: a dict.
         """
         self.is_training = is_training
-
         self.num_labels = params['num_labels']
-        # not counting background
 
         if is_training:
             batch_size = params['batch_size']
@@ -99,7 +97,7 @@ class Pipeline:
         return features, labels
 
     def augmentation(self, image, masks):
-        image, masks = random_rotation(image, masks, max_angle=30, probability=0.2)
+        image, masks = random_rotation(image, masks, max_angle=30, probability=0.1)
         image, masks = randomly_crop_and_resize(image, masks, self.image_size, probability=0.9)
         image = random_color_manipulations(image, probability=0.5, grayscale_probability=0.05)
         image = random_pixel_value_scale(image, probability=0.2, minval=0.9, maxval=1.1)

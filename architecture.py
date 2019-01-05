@@ -4,6 +4,7 @@ import tensorflow.contrib.slim as slim
 
 BATCH_NORM_MOMENTUM = 0.99
 BATCH_NORM_EPSILON = 1e-3
+DROPOUT_RATE = 0.05
 
 
 def eda_net(images, is_training, k, num_classes):
@@ -46,7 +47,8 @@ def eda_net(images, is_training, k, num_classes):
         }
 
         with slim.arg_scope([slim.conv2d], **params):
-            with slim.arg_scope([slim.dropout], keep_prob=0.95, is_training=is_training):
+            keep_prob = 1.0 - DROPOUT_RATE
+            with slim.arg_scope([slim.dropout], keep_prob=keep_prob, is_training=is_training):
 
                 x = downsampling_block(
                     x, out_channels=15, scope='downsampling1',
