@@ -6,7 +6,7 @@ def random_rotation(image, masks, max_angle=45, probability=0.9):
     """
     Arguments:
         image: a float tensor with shape [height, width, 3].
-        masks: a float tensor with shape [height, width, num_labels].
+        masks: a float tensor with shape [height, width, num_labels], binary masks.
         max_angle: an integer.
         probability: a float number.
     Returns:
