@@ -7,20 +7,20 @@ tf.logging.set_verbosity('INFO')
 
 
 GPU_TO_USE = '0'
-NUM_STEPS = 50000
+NUM_STEPS = 9000
 
 # a numpy float array with shape [num_labels]
-CLASS_WEIGHTS = np.load('data/class_weights.npy')
+CLASS_WEIGHTS = np.load('/home/dan/datasets/cityscapes/edanet/weights.npy')
 # zeroth label means background
 
 params = {
     'model_dir': 'models/run00/',
-    'train_dataset': '/mnt/datasets/dan/moda/edanet/train/',
-    'val_dataset': '/mnt/datasets/dan/moda/edanet/val/',
+    'train_dataset': '/home/dan/datasets/cityscapes/edanet/train/',
+    'val_dataset': '/home/dan/datasets/cityscapes/edanet/val/',
 
     'weight_decay': 1e-4,
     'k': 40,  # growth rate
-    'num_labels': 14,  # background is counted
+    'num_labels': 19,  # ignore label is not counted
     'class_weights': CLASS_WEIGHTS.tolist(),
 
     'num_steps': NUM_STEPS,

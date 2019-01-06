@@ -21,7 +21,7 @@ class Pipeline:
             params: a dict.
         """
         self.is_training = is_training
-        self.num_labels = params['num_labels']
+        self.num_labels = params['num_labels']  # it can be None
 
         if is_training:
             batch_size = params['batch_size']
@@ -71,7 +71,7 @@ class Pipeline:
                 an RGB image with pixel values in the range [0, 1].
             labels: an int tensor with shape [image_height, image_width].
                 The values that it can contain are {0, 1, ..., num_labels - 1}.
-                It also can contain ignore label: 255.
+                It also can contain ignore label: `num_labels`.
         """
         features = {
             'image': tf.FixedLenFeature([], tf.string),
@@ -98,6 +98,7 @@ class Pipeline:
     def augmentation(self, image, labels):
 
         if ROTATE:
+            assert self.num_labels is not None
             labels = tf.squeeze(labels, 2)
             binary_masks = tf.one_hot(labels, self.num_labels, dtype=tf.float32)
             image, binary_masks = random_rotation(image, binary_masks, max_angle=30, probability=0.1)

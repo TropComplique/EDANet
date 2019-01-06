@@ -1,6 +1,6 @@
 # Cityscapes
 1. Get dataset files: `gtFine_trainvaltest.zip` and `leftImg8bit_trainvaltest.zip` from [here](https://www.cityscapes-dataset.com/downloads/).
-2. Get [cityscapesScripts](https://github.com/mcordts/cityscapesScripts) and do `cd cityscapesScripts; pip install .`
+2. Get [cityscapesScripts](https://github.com/mcordts/cityscapesScripts) and do `cd cityscapesScripts; pip install .`.
 3. Generate images with labels (`annotations` folder must contain `gtFine`):
 ```
 export CITYSCAPES_DATASET=/home/dan/datasets/cityscapes/annotations/

@@ -42,12 +42,18 @@ def model_fn(features, labels, mode, params):
 
         class_weights = tf.constant(params['class_weights'], tf.float32)
         # it has shape [num_labels]
+        
+        shape = tf.shape(labels)
+        labels2 = tf.reshape(labels, [-1])
+        not_ignore = tf.not_equal(labels2, 255)
+        labels2 = tf.boolean_mask(labels2, not_ignore)
+        logits = tf.reshape(logits, [shape[0]*shape[1]*shape[2], -1])
+        logits = tf.boolean_mask(logits, not_ignore)
+        
+        weights = tf.gather(class_weights, labels2)
+        losses = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels2, logits=logits)
 
-        weights = tf.gather(class_weights, labels)
-        losses = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=logits)
-        # they have shape [batch_size, image_height, image_width]
-
-        cross_entropy = tf.reduce_mean(losses * weights, axis=[0, 1, 2])
+        cross_entropy = tf.reduce_mean(losses * weights, axis=0)
         tf.losses.add_loss(cross_entropy)
         tf.summary.scalar('cross_entropy', cross_entropy)
 
