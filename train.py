@@ -24,7 +24,7 @@ params = {
     'class_weights': CLASS_WEIGHTS.tolist(),
 
     'num_steps': NUM_STEPS,
-    'initial_learning_rate': 1e-4,
+    'initial_learning_rate': 5e-4,
     'decay_steps': NUM_STEPS,
     'end_learning_rate': 1e-6,
 

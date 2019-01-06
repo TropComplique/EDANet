@@ -1,7 +1,12 @@
 # Cityscapes
 1. Get dataset files: `gtFine_trainvaltest.zip` and `leftImg8bit_trainvaltest.zip` from [here](https://www.cityscapes-dataset.com/downloads/).
-2. Get [cityscapesScripts](https://github.com/mcordts/cityscapesScripts).
+2. Get [cityscapesScripts](https://github.com/mcordts/cityscapesScripts). cd cityscapesScripts pip install .
 
+
+export CITYSCAPES_DATASET=/home/dan/datasets/cityscapes/annotations/
+3. python cityscapesscripts/preparation/createTrainIdLabelImgs.py
+
+4. 
 
 # ModaNet
 [ModaNet: A Large-Scale Street Fashion Dataset with Polygon Annotations](https://arxiv.org/abs/1807.01394).

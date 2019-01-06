@@ -6,6 +6,8 @@ from .color_augmentations import random_color_manipulations, random_pixel_value_
 SHUFFLE_BUFFER_SIZE = 5000
 NUM_PARALLEL_CALLS = 12
 RESIZE_METHOD = tf.image.ResizeMethod.BILINEAR
+MIN_CROP_SIZE = 0.9
+ROTATE = False
 
 
 class Pipeline:
@@ -82,28 +84,29 @@ class Pipeline:
         image = tf.image.convert_image_dtype(image, tf.float32)
         # now pixel values are scaled to the [0, 1] range
 
-        # get a segmentation masks
-        masks = tf.decode_raw(parsed_features['masks'], tf.uint8)
-        masks = tf.reshape(masks, [image_height, image_width])
+        # get a segmentation labels
+        labels = tf.image.decode_png(parsed_features['masks'], channels=1)
 
-        if self.is_training:
-            masks = tf.one_hot(masks, self.num_labels, dtype=tf.float32)
-            image, masks = self.augmentation(image, masks)
-            labels = tf.argmax(masks, axis=2, output_type=tf.int32)
-        else:
-            labels = tf.to_int32(masks)
+        if self.is_training:            
+            image, labels = self.augmentation(image, labels)
+            
+        labels = tf.squeeze(labels, 2)
+        labels = tf.to_int32(labels)
+        return image, labels
 
-        features, labels = image, labels
-        return features, labels
-
-    def augmentation(self, image, masks):
-        image, masks = random_rotation(image, masks, max_angle=30, probability=0.1)
-        image, masks = randomly_crop_and_resize(image, masks, self.image_size, probability=0.9)
-        image = random_color_manipulations(image, probability=0.5, grayscale_probability=0.05)
-        image = random_pixel_value_scale(image, probability=0.2, minval=0.9, maxval=1.1)
-        image, masks = random_flip_left_right(image, masks)
-        masks.set_shape(self.image_size + [self.num_labels])
-        return image, masks
+    def augmentation(self, image, labels):
+           
+        if ROTATE:
+            labels = tf.squeeze(labels, 2)
+            binary_masks = tf.one_hot(labels, self.num_labels, dtype=tf.float32)
+            image, binary_masks = random_rotation(image, binary_masks, max_angle=30, probability=0.1)
+            labels = tf.argmax(binary_masks, axis=2, output_type=tf.int32)
+        
+        image, labels = randomly_crop_and_resize(image, labels, self.image_size, probability=0.9)
+        image = random_color_manipulations(image, probability=0.1, grayscale_probability=0.05)
+        image = random_pixel_value_scale(image, probability=0.1, minval=0.9, maxval=1.1)
+        image, labels = random_flip_left_right(image, labels)
+        return image, labels
 
 
 def randomly_crop_and_resize(image, masks, image_size, probability=0.5):
@@ -125,7 +128,7 @@ def randomly_crop_and_resize(image, masks, image_size, probability=0.5):
     def get_random_window():
 
         crop_size = tf.random_uniform(
-            [], tf.to_int32(0.5 * tf.to_float(min_dimension)),
+            [], tf.to_int32(MIN_CROP_SIZE * tf.to_float(min_dimension)),
             min_dimension, dtype=tf.int32
         )
         # min(height, width) > crop_size
