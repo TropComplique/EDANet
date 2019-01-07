@@ -69,7 +69,7 @@ def to_tf_example(image_path, annotation_path):
 
     mask = mask.resize((WIDTH, HEIGHT), Image.NEAREST)
     encoded_mask = to_png_bytes(mask)
-    
+
     # this is needed for creating class loss weights
     mask = np.array(mask)
     not_ignore = mask != 255

@@ -45,9 +45,9 @@ def eda_net(images, is_training, k, num_classes):
             'normalizer_fn': batch_norm, 'data_format': 'NHWC',
             'weights_initializer': tf.contrib.layers.variance_scaling_initializer()
         }
+        keep_prob = 1.0 - DROPOUT_RATE
 
         with slim.arg_scope([slim.conv2d], **params):
-            keep_prob = 1.0 - DROPOUT_RATE
             with slim.arg_scope([slim.dropout], keep_prob=keep_prob, is_training=is_training):
 
                 x = downsampling_block(

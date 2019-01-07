@@ -3,6 +3,7 @@ from architecture import eda_net
 
 
 MOVING_AVERAGE_DECAY = 0.995
+IGNORE_LABEL = 255
 
 
 def model_fn(features, labels, mode, params):
@@ -42,18 +43,21 @@ def model_fn(features, labels, mode, params):
 
         class_weights = tf.constant(params['class_weights'], tf.float32)
         # it has shape [num_labels]
-        
-        shape = tf.shape(labels)
-        labels2 = tf.reshape(labels, [-1])
-        not_ignore = tf.not_equal(labels2, 255)
-        labels2 = tf.boolean_mask(labels2, not_ignore)
-        logits = tf.reshape(logits, [shape[0]*shape[1]*shape[2], -1])
-        logits = tf.boolean_mask(logits, not_ignore)
-        
-        weights = tf.gather(class_weights, labels2)
-        losses = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels2, logits=logits)
 
+        shape = tf.shape(logits)
+        batch_size, height, width, num_labels = tf.unstack(shape, axis=0)
+
+        labels_flat = tf.reshape(labels, [-1])
+        logits = tf.reshape(logits, [batch_size * height * width, num_labels])
+
+        not_ignore = tf.not_equal(labels_flatten, IGNORE_LABEL)
+        labels_flat = tf.boolean_mask(labels_flat, not_ignore)
+        logits = tf.boolean_mask(logits, not_ignore)
+
+        weights = tf.gather(class_weights, labels_flat)
+        losses = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels_flat, logits=logits)
         cross_entropy = tf.reduce_mean(losses * weights, axis=0)
+
         tf.losses.add_loss(cross_entropy)
         tf.summary.scalar('cross_entropy', cross_entropy)
 
@@ -136,7 +140,8 @@ def compute_iou(x, y, num_labels):
     Arguments:
         x, y: int tensors with shape [b, h, w],
             possible values that they can contain
-            are {0, 1, ..., num_labels - 1}.
+            are {0, 1, ..., num_labels - 1, IGNORE_LABEL}.
+            Note that ignore label is ignored here.
         num_labels: an integer.
     Returns:
         a float tensor with shape [].

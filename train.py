@@ -7,11 +7,10 @@ tf.logging.set_verbosity('INFO')
 
 
 GPU_TO_USE = '0'
-NUM_STEPS = 9000
+NUM_STEPS = 90000  # 300 epochs
 
 # a numpy float array with shape [num_labels]
 CLASS_WEIGHTS = np.load('/home/dan/datasets/cityscapes/edanet/weights.npy')
-# zeroth label means background
 
 params = {
     'model_dir': 'models/run00/',
